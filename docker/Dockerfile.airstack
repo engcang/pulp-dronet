@@ -1,0 +1,6 @@
+FROM python:3.10-slim-bookworm
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+RUN pip install --no-cache-dir typing_extensions==4.12.2 numpy==1.24.1 opencv-python-headless==4.6.0.66 \
+    && pip install --no-cache-dir --no-deps --index-url https://download.pytorch.org/whl/cpu torch==1.13.1+cpu
+WORKDIR /workspace/planner
+CMD ["python", "pulp_dronet_airstack.py", "--help"]

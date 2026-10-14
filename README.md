@@ -1,3 +1,7 @@
+## AirStack integration (this fork)
+
+See [installation and flight instructions](README_AIRSTACK.md) for the pretrained PULP-DroNet v3 HTTP worker, Docker image, and shared WS2 test bench. Upstream training and embedded deployment instructions remain below.
+
 <div align="center"; margin: 0px; padding: 0px;">
   <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/pulp-platform/pulp-dronet?style=flat-square">
   <img alt="GitHub forks" src="https://img.shields.io/github/forks/pulp-platform/pulp-dronet?style=flat-square">
