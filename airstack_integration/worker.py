@@ -12,7 +12,7 @@ import cv2
 import numpy as np
 import torch
 
-from .model import dronet
+from .model import dronet, Depthwise_Separable
 from .policy import preprocess, Policy, trajectory, HeadingReference
 
 
@@ -55,7 +55,8 @@ def save_preview(bgr,gray,roi,info):
 def main():
     p=argparse.ArgumentParser()
     p.add_argument('--server',default='http://127.0.0.1:8765')
-    p.add_argument('--weights',default=str(Path(__file__).parents[1]/'tiny-pulp-dronet-v3/model/pulp-dronet-v3-resblock-1.0.pth'))
+    p.add_argument('--variant',choices=['resblock','tiny'],default='resblock')
+    p.add_argument('--weights',help='Optional checkpoint override; strict architecture loading is always enabled')
     p.add_argument('--execute',action='store_true');p.add_argument('--headless',action='store_true')
     p.add_argument('--maximum-speed',type=float,default=.35)
     p.add_argument('--yaw-gain',type=float,default=120.)
@@ -67,12 +68,15 @@ def main():
     args=p.parse_args()
     torch.set_num_threads(2)
     # This 320k-parameter model is fast on CPU; avoids unnecessary GPU contention.
-    model=dronet().eval()
+    model=(dronet() if args.variant=='resblock' else dronet(depth_mult=.125,block_class=Depthwise_Separable,bypass=False)).eval()
+    if not args.weights:
+        filename='pulp-dronet-v3-resblock-1.0.pth' if args.variant=='resblock' else 'tiny-pulp-dronet-v3-dw-pw-0.125.pth'
+        args.weights=str(Path(__file__).parents[1]/'tiny-pulp-dronet-v3/model'/filename)
     model.load_state_dict(torch.load(args.weights,map_location='cpu',weights_only=True),strict=True)
     policy=Policy(args.maximum_speed,args.yaw_gain,args.smoothing)
     heading_reference=HeadingReference()
     sequence=None;last=0.;errors=0
-    print('PULP-DroNet v3: official float ResBlock1.0 checkpoint; RGB-only reactive policy',flush=True)
+    print(f'PULP-DroNet v3: official float {args.variant} checkpoint; RGB-only reactive policy',flush=True)
     try:
         while True:
             time.sleep(max(0,1/args.rate-(time.monotonic()-last)))
@@ -100,7 +104,7 @@ def main():
                 points[:,3]=reference
             response=post(args.server,'/trajectory',{'command_index':0,'velocity':max(speed,.001),
                           'execute':args.execute,'replace':True,'waypoints':points.tolist()})
-            info=dict(planner='pulp_dronet',run_id=os.environ.get('WS2_RUN_ID'),wall_time=time.time(),
+            info=dict(planner='pulp_dronet',model_variant=args.variant,run_id=os.environ.get('WS2_RUN_ID'),wall_time=time.time(),
                       sequence=sequence,sim_stamp=meta['stamp'],inference_ms=latency,steering=steer,
                       collision_probability=collision,speed=speed,yaw_rate=yaw,input_fov_deg=args.input_fov,
                       actual_input_fov_deg=float(np.degrees(2*np.arctan(roi[2]/(2*meta['k'][0])))),

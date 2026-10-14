@@ -1,7 +1,7 @@
 # PULP-DroNet v3 with AirStack
 
 This integration runs the official pretrained **float PULP-DroNet v3 ResBlock
-1.0** checkpoint. It does not retrain the model and does not require NEMO or
+1.0** or **Tiny v3 depthwise 0.125 (no bypass)** checkpoint. It does not retrain the model and does not require NEMO or
 the embedded build tools. Isaac camera images become grayscale input; the
 network predicts steering and collision probability. Its outputs control an
 Iris through the existing AirStack controller and PX4.
@@ -40,7 +40,8 @@ worker also works with an already configured compatible vision bridge.
 
 The small official checkpoint is
 already tracked by upstream at
-`tiny-pulp-dronet-v3/model/pulp-dronet-v3-resblock-1.0.pth`; no second download,
+`tiny-pulp-dronet-v3/model/pulp-dronet-v3-resblock-1.0.pth`; the Tiny variant is
+`tiny-pulp-dronet-v3/model/tiny-pulp-dronet-v3-dw-pw-0.125.pth`. No second download,
 training dataset, CUDA runtime, or model API credential is required for this
 worker. Its CPU inference leaves the GPU available for Isaac. The bench mounts
 this checkout into the image, so source edits do not require an image rebuild.
@@ -63,6 +64,7 @@ height: 1.2
 timeout: 300
 maximum_speed: 0.35
 input_fov_deg: 60
+pulp_variant: resblock # or tiny; held fixed throughout a study
 condition:
   name: clean
   layout: corridor
@@ -139,6 +141,11 @@ Episode controls: `maximum_speed`, `trajectory_horizon`, `yaw_gain_deg_s`
 (30–180), `input_fov_deg` (40–85), `command_smoothing` (0–0.95), and
 `yaw_reference_mode` (`integrated` or `trajectory`). These target parameters
 remain fixed during a campaign; the attack agent does not tune the controller.
+Select the architecture with YAML `pulp_variant: resblock|tiny`, or standalone
+`--variant resblock|tiny`. Every inference record includes the selected variant.
+Both adaptations passed strict loading and exact output comparison against
+the official Python model on eight seeded tensors each. This is an integration
+check, not a navigation performance comparison.
 
 `WS2_INFERENCE_DIR` exports a JPEG and JSON with actual input, crop, network
 outputs, commands and latency. `WS2_RUN_ID` associates them with an episode.

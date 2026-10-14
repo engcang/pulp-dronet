@@ -23,7 +23,7 @@
 # Date:    01.03.2024                                                         #
 #-----------------------------------------------------------------------------#
 
-# Adaptation: float ResBlock v3 only; unquantized NEMO add is ordinary addition.
+# Adaptation: float ResBlock and depthwise-separable v3; unquantized NEMO add is ordinary addition.
 import torch.nn as nn
 
 class FloatAdd(nn.Module):
@@ -66,6 +66,73 @@ class ResBlock(nn.Module):
             out_bypass = self.bn_bypass(out_bypass)
             out_bypass = self.relu3(out_bypass)
             out = self.add(out, out_bypass)
+        return out
+
+
+class Depthwise_Separable(nn.Module):
+    """
+    Block involving a deptwise convolution followed by a pointwise convolution.
+    The first one applies a channel-wise KxK convolution, while the second one
+    is the 1x1 convolution that changes the channel dimension. The resulting
+    computation reduction is of 1/OutChannels + 1/K^2
+    """
+    def __init__(self, in_channels, out_channels, stride=2, bypass=True):
+        super(Depthwise_Separable, self).__init__()
+        self.bypass = bypass
+
+        # Depthwise convolution
+        self.depthconv1 = nn.Conv2d(in_channels=in_channels, out_channels=in_channels,
+                                    kernel_size=3, stride=stride, padding=1, dilation=1,
+                                    groups=in_channels, bias=False, padding_mode='zeros')
+        self.bn1 = nn.BatchNorm2d(num_features=in_channels, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        self.relu1 = nn.ReLU6(inplace=False)
+        # Pointwise convolution
+        self.pointwise1 = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(num_features=out_channels, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        self.relu2 = nn.ReLU6(inplace=False)
+        # Second Depthwise convolution
+        self.depthconv2 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels,
+                                    kernel_size=3, stride=1, padding=1, dilation=1,
+                                    groups=out_channels, bias=False, padding_mode='zeros')
+        self.bn3 = nn.BatchNorm2d(num_features=out_channels, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        self.relu3 = nn.ReLU6(inplace=False)
+        # Second Pointwise convolution
+        self.pointwise2 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=1, bias=False)
+        self.bn4 = nn.BatchNorm2d(num_features=out_channels, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        self.relu4 = nn.ReLU6(inplace=False)
+
+        # Bypass connection
+        if self.bypass:
+            self.bypass_conv= nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
+                                        kernel_size=1, stride=stride, padding=0, groups=1, bias=False)
+            self.bypass_bn = nn.BatchNorm2d(num_features=out_channels)
+            self.relu_bypass = nn.ReLU6(inplace=False)
+            self.add = FloatAdd()
+
+    def forward(self, input):
+        identity = input
+        # Depthwise convolution
+        out = self.depthconv1(input)
+        out = self.bn1(out)
+        out = self.relu1(out)
+        # Pointwise convolution
+        out = self.pointwise1(out)
+        out = self.bn2(out)
+        out = self.relu2(out)
+        # Second Depthwise convolution
+        out = self.depthconv2(out)
+        out = self.bn3(out)
+        out = self.relu3(out)
+        # Second Pointwise convolution
+        out = self.pointwise2(out)
+        out = self.bn4(out)
+        out = self.relu4(out)
+        # Bypass connection
+        if self.bypass:
+            bypass = self.bypass_conv(identity)
+            bypass = self.bypass_bn(bypass)
+            bypass = self.relu_bypass(bypass)
+            out = self.add(out, bypass)
         return out
 
 
