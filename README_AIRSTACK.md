@@ -58,7 +58,7 @@ docker run --rm -v "$PWD:/workspace/planner:ro" \
 From `AirStack/`, save this as a scenario YAML:
 
 ```yaml
-name: pulp_rounded_u_clean
+name: pulp_two_block_u_clean
 planner: pulp_dronet
 height: 1.2
 timeout: 500
@@ -75,10 +75,10 @@ condition:
   corridor:
     shape: u_obstacles
     width: 4.0
-    obstacles: 4
+    obstacles: 2
     style: hallway
     bend_radius: 4.0
-    route_scale: 1.5
+    route_scale: 2.0
 ```
 
 ```bash
@@ -86,10 +86,11 @@ python3 tools/ws2_bench/episode.py scenario.yaml --resolve-only
 python3 tools/ws2_bench/episode.py scenario.yaml --no-bag --camera follow
 ```
 
-This profile completed two fresh clean U-corridor qualification flights with
-four blocks, two further clean controls, and separate L, curve and zigzag traversals.
-Matched sensor checks are listed below. These small checks do not establish
-general reliability in other layouts or Office. The
+This shared 40.56m two-block course completed three fresh clean flights
+(two qualification runs and one noise control). The same frozen target also
+completed the earlier four-block course and separate L, curve and zigzag
+traversals. These small checks do not establish general reliability in other
+layouts or Office. The
 runner resets the simulator and worker, takes off, executes the model, scores
 all-scene PhysX contacts and saves configuration, source hashes, trajectories,
 metrics and diagnostic images. Omit `--no-bag` if a ROS bag is also needed.
@@ -122,8 +123,18 @@ DroNet. Always establish a clean reference before interpreting attack effects.
 
 ## Observed corridor results (2026-10-14)
 
-The Tiny/FOV78/yaw90 profile above was held fixed throughout a six-flight
-U-course study, with fresh simulator and worker starts. The four clean flights
+The current two-block example (40.56m scoring route) completed **3/3 clean
+flights**, including the fresh noise control. RGB noise sigma32 then caused a
+wall contact at14.66% progress (6.93m actual motion,64.47sim s); its clean
+control completed37.62m/213.84sim s. This is one matched comparison. The four
+flights passed configuration, exact-geometry, frozen-source/weight/controller,
+applied-noise and cleanup audits. MonoNav and Kim were checked on that same
+physical course in separate target studies.
+
+
+The earlier four-block U course used the same Tiny/FOV78/yaw90 target settings,
+with `obstacles: 4` and `route_scale: 1.5` (29.56m scoring route). Its six-flight
+study restarted the simulator and worker for every run. The four clean flights
 (two qualification runs plus one control per perturbation) all completed.
 
 | Condition | Observed result |
@@ -205,8 +216,9 @@ outputs, commands and latency. `WS2_RUN_ID` associates them with an episode.
   revision `98f15cfe2e9c34c3a546358e22e45b3b09f11a79`.
 - [Paper](https://arxiv.org/abs/2407.12675): *Distilling Tiny and Ultra-fast
   Deep Neural Networks for Autonomous Navigation on Nano-UAVs*.
-- Checkpoint SHA256:
-  `943ab4cbbc28cd711e874559dcb3ba0419a0ae1250dc8c94665f4a46d878ff6e`.
+- Checkpoint SHA256 (also checked by `check_weights.py`):
+  - ResBlock: `943ab4cbbc28cd711e874559dcb3ba0419a0ae1250dc8c94665f4a46d878ff6e`.
+  - Tiny: `9775bb595cbc8dba4043b95a31dbec2674789522d339913e67c9655cf5d84729`.
 - `airstack_integration/model.py` preserves the official layer names and
   parameters. Unquantized NEMO residual addition becomes ordinary addition;
   strict state-dictionary loading is required. Upstream copyright and license
