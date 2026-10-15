@@ -26,7 +26,7 @@ workspace/
 From your chosen workspace directory:
 
 ```bash
-git clone --branch eungchang/adv-ws2 git@github.com:castacks/AirStack.git
+git clone --recursive --branch eungchang/adv-ws2 git@github.com:castacks/AirStack.git
 git clone git@github.com:engcang/pulp-dronet.git
 cd pulp-dronet
 python3 airstack_integration/check_weights.py
@@ -58,13 +58,14 @@ docker run --rm -v "$PWD:/workspace/planner:ro" \
 From `AirStack/`, save this as a scenario YAML:
 
 ```yaml
-name: pulp_elbow_clean
+name: pulp_rounded_u_clean
 planner: pulp_dronet
 height: 1.2
-timeout: 300
+timeout: 500
 maximum_speed: 0.35
-input_fov_deg: 60
-pulp_variant: resblock # or tiny; held fixed throughout a study
+input_fov_deg: 78
+yaw_gain_deg_s: 90
+pulp_variant: tiny # held fixed throughout a study
 condition:
   name: clean
   layout: corridor
@@ -72,9 +73,12 @@ condition:
   seed: 42
   light: 1800
   corridor:
-    shape: elbow
-    width: 3.5
-    obstacles: 2
+    shape: u_obstacles
+    width: 4.0
+    obstacles: 4
+    style: hallway
+    bend_radius: 4.0
+    route_scale: 1.5
 ```
 
 ```bash
@@ -82,13 +86,29 @@ python3 tools/ws2_bench/episode.py scenario.yaml --resolve-only
 python3 tools/ws2_bench/episode.py scenario.yaml --no-bag --camera follow
 ```
 
-This is an example, not a guarantee of a qualified clean configuration. The
+This profile completed two fresh clean U-corridor flights with four blocks,
+plus one bare zigzag traversal (38.00m measured motion,210.00 simulation seconds).
+Matched sensor checks are listed below. These small checks do not establish
+general reliability in other layouts or Office. The
 runner resets the simulator and worker, takes off, executes the model, scores
 all-scene PhysX contacts and saves configuration, source hashes, trajectories,
 metrics and diagnostic images. Omit `--no-bag` if a ROS bag is also needed.
 Corridor missions require ordered traversal to the end; merely remaining in
 the air is insufficient. Other supported shapes are `curve`, `zigzag`, and
-`u_obstacles`. Corridor geometry is **not** sent to this reactive model.
+`elbow`. Corridor geometry is **not** sent to this reactive model.
+
+For repeated clean checks followed by isolated noise/delay comparisons:
+
+```bash
+python3 tools/ws2_bench/corridor_study.py scenario.yaml \
+  --output robot/ros_ws/ws2_runtime/campaigns/pulp_corridor_study \
+  --clean-repeats 2 --attack rgb_noise --attack delay
+```
+
+Use a new output directory when changing settings. A failed clean check stops
+that study; it does not establish an attack effect. The study saves an English
+`vulnerability_report.md` and JSON results. The viewer observes and controls
+these CLI-launched corridor runs; its Office launch form is a separate workflow.
 
 ```bash
 python3 tools/ws2_bench/dashboard.py
@@ -100,6 +120,27 @@ Random, search, feedback and optional Claude use the same adapter. Supported
 perturbations are RGB noise and sensor delay. Rui's FCRN patch is rejected for
 DroNet. Always establish a clean reference before interpreting attack effects.
 
+## Observed corridor results (2026-10-14)
+
+The Tiny/FOV78/yaw90 profile above was held fixed throughout a six-flight
+U-course study, with fresh simulator and worker starts. The four clean flights
+(two qualification runs plus one control per perturbation) all completed.
+
+| Condition | Observed result |
+|---|---|
+| Clean, four wall-attached blocks |4/4 completed the29.56m scoring route |
+| RGB Gaussian noise, sigma32 on0–255 pixels |Collision at22.08% route progress; one matched comparison |
+| Additional sensor delay,0.5 simulation seconds |Completed;3.45s longer than its clean control |
+| Separate bare zigzag clean check |38.00m actual motion,210.00s,21/21 gates,no contact |
+
+Noise and delay were tested separately. The noise result is a candidate
+vulnerability observation, not a statistical robustness estimate; the passing
+delay run does not prove immunity to latency. These results concern the larger
+AirStack Iris, rendered corridor and documented control adapter, not a
+reproduction of the paper's original nano-UAV performance. The earlier FOV60
+zigzag failure and unsuccessful ResBlock/Office trials remain in the bench log.
+The L-corridor ResBlock pass is not evidence that Tiny has passed that scene.
+
 ## Standalone worker
 
 For an **already running** AirStack HTTP vision bridge, inspect the options:
@@ -110,8 +151,11 @@ docker run --rm --network host \
   pulp-dronet-airstack:1.0 python pulp_dronet_airstack.py --help
 ```
 
-Replace `--help` with `--server http://127.0.0.1:8765 --headless --execute`
-only when the simulator and flight controller are ready. This worker does not
+For the corridor-tested profile, replace `--help` with
+`--server http://127.0.0.1:8765 --variant tiny --input-fov 78 --yaw-gain 90
+--maximum-speed 0.35 --headless --execute` only when the simulator and flight
+controller are ready. Omitting the variant selects the legacy ResBlock model;
+it is not the Tiny profile tested above. This worker does not
 start Isaac, arm the drone, record a bag, or perform landing by itself; the
 episode runner is the recommended entry point.
 
