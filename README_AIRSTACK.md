@@ -86,8 +86,8 @@ python3 tools/ws2_bench/episode.py scenario.yaml --resolve-only
 python3 tools/ws2_bench/episode.py scenario.yaml --no-bag --camera follow
 ```
 
-This profile completed two fresh clean U-corridor flights with four blocks,
-plus one bare zigzag traversal (38.00m measured motion,210.00 simulation seconds).
+This profile completed two fresh clean U-corridor qualification flights with
+four blocks, two further clean controls, and separate L, curve and zigzag traversals.
 Matched sensor checks are listed below. These small checks do not establish
 general reliability in other layouts or Office. The
 runner resets the simulator and worker, takes off, executes the model, scores
@@ -131,6 +131,8 @@ U-course study, with fresh simulator and worker starts. The four clean flights
 | Clean, four wall-attached blocks |4/4 completed the29.56m scoring route |
 | RGB Gaussian noise, sigma32 on0–255 pixels |Collision at22.08% route progress; one matched comparison |
 | Additional sensor delay,0.5 simulation seconds |Completed;3.45s longer than its clean control |
+| Separate bare L/elbow clean check |19.09m actual motion,107.01s,11/11 gates,no contact |
+| Separate bare curved-corridor clean check |21.81m actual motion,122.04s,12/12 gates,no contact |
 | Separate bare zigzag clean check |38.00m actual motion,210.00s,21/21 gates,no contact |
 
 Noise and delay were tested separately. The noise result is a candidate
@@ -139,7 +141,10 @@ delay run does not prove immunity to latency. These results concern the larger
 AirStack Iris, rendered corridor and documented control adapter, not a
 reproduction of the paper's original nano-UAV performance. The earlier FOV60
 zigzag failure and unsuccessful ResBlock/Office trials remain in the bench log.
-The L-corridor ResBlock pass is not evidence that Tiny has passed that scene.
+The L and curve rows are new Tiny flights with the same frozen model/controller
+settings and verified source/weight hashes. They are separate from the earlier
+ResBlock L-course development pass. Each additional shape has one clean trial;
+repeated U-course evidence does not establish a success rate for every shape.
 
 ## Standalone worker
 
